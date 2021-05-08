@@ -1,0 +1,731 @@
+---
+title: "Ridge and LASSO regression"
+output: html_document
+---
+
+<h1>
+
+Introduction
+
+</h1>
+
+<p>
+
+Regression analysis is type of predictive modelling technique used to find relationship between dependent variable "Y" and at least one or more independent variables "X".
+
+</p>
+
+<p>
+
+Sometimes Linear regression models will not give the desired results and the model is likely to overfit or underfit both training and testing data. To achieve a <b>Good Fit Model</b> regularization -technique that helps a model perform on data that it has not seen before - is required. Regularization discourages learning a more complex or flexible model to prevent overfitting. Ridge and Lasso are the most common ways for regularizing the data and helping in bias and variance tradeoff.
+
+</p>
+
+<p>
+
+<ul>
+
+<li>
+
+Ridge regression imposes a penalty on the coefficients to shrink them towards zero, but it doesn't set any coefficients to zero.It does not do feature selection
+
+</li>
+
+<li>
+
+Lasso(least absolute shrinkage and selection operator) regression uses the approach of absolute shrinkage and selection to reduce the value of incorrectly estimated coefficients. It allows some coefficients to be exatly zero thus performing feature selection for the model
+
+</li>
+
+</ul>
+
+</p>
+
+<p>
+
+We will be building reqularization models using Ridge and LASSO models. The outcome/dependent variable is Grad.Rate
+
+</p>
+
+<br />
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ISLR)
+library(RColorBrewer)
+library(gmodels)
+library(tidyverse)
+library(dplyr)
+library(readr)
+library(caret)
+library(MASS)
+library(glmnet)
+```
+
+<b>Import College dataset contained in library ISLR</b> <br /> <b>Loading Data</b>
+
+```{r}
+data("College")
+head(College)
+```
+
+<br /> <b>Check the size of data</b>
+
+```{r}
+dim(College)
+```
+
+<p>
+
+The dataset has 18 columns and 777 rows
+
+</p>
+
+<br />
+
+<b>Check if there are any Null values</b>
+
+```{r}
+is.null(College)
+```
+
+<p>
+
+The data has no Null Values
+
+</p>
+
+<br />
+
+<b>Check the data types of columns</b>
+
+```{r}
+sapply(College, class)
+```
+
+<p>
+
+Only private column is factor data type. All other are numeric data types
+
+</p>
+
+<br />
+
+<h1>
+
+Building Linear Models using LASSO and Ridge Methods
+
+<h1>
+
+<h1>
+
+Splitting Data into Train/Test Dataset
+
+</h1>
+
+<p>
+
+Data will be split on ratio of 70:30. 70% training data and 30% testing data70% training data and 30% testing data
+
+</p>
+
+```{r}
+set.seed(1)
+sample <- sample(c(TRUE, FALSE), nrow(College), replace=TRUE, prob=c(0.7,0.3))
+train_data <- College[sample, ]
+test_data <- College[!sample, ]
+```
+
+```{r}
+head(train_data)
+```
+
+```{r}
+head(test_data)
+```
+
+<P>
+
+Selecting and converting Predictors to matrix for regression
+
+</P>
+
+</br>
+
+```{r}
+list_names <- colnames(College)[colnames(College) != "Grad.Rate"]  # Get names
+x_feat <- data.matrix(College[, list_names]) #Predictors
+y_feat <- College[, "Grad.Rate"] # Target 
+
+```
+
+<h1>
+
+Ridge Regression
+
+</h1>
+
+<p>
+
+<b>Ridge Model</b>
+
+</p>
+
+```{r}
+model <- glmnet(x_feat, y_feat, alpha = 0)
+#view summary of model
+summary(model)
+```
+
+<p>
+
+We use cv.gmlet funtion in the gmlet to obtain ambda value that produces the lowest test mean squared error (MSE)
+
+</p>
+
+```{r}
+set.seed(123)
+
+model_ridge <- cv.glmnet(x_feat, y_feat, alpha = 0)
+
+model_ridge$lambda.min
+```
+
+<p>
+
+The optimal lambda value comes out to be 2.265576 and will be used to build the ridge regression model.
+
+</p>
+
+```{r}
+data.frame(
+  Lamda_min = model_ridge$lambda.min,
+  Lambda_lse = model_ridge$lambda.1se
+)
+```
+
+<ul>
+
+<li>
+
+The minimum value of lambda (lambda.min) that results in the smallest cross-validation error - value in this case 2.265576
+
+</li>
+
+<li>
+
+The largest value of lambda (ie. more regularized) within the 1 standard error of the value - 17.54153
+
+</li>
+
+</ul>
+
+<br />
+
+<p>
+
+<b>Plot for Ridge model</b>
+
+</p>
+
+```{r}
+plot(model_ridge)
+abline(v=model_ridge$lambda.min, col = "red", lty=2)
+abline(v=model_ridge$lambda.1se, col="blue", lty=2)
+```
+
+<p>
+
+The lowest point in the curve indicates the optimal lambda: the log value of lambda that best minimised the error in cross-validation.
+
+<ul>
+
+<li>
+
+The minimum value of lambda (lambda.min) that results in the smallest cross-validation error - value in this case 2.265576
+
+</li>
+
+<li>
+
+The largest value of lambda (ie. more regularized) within the 1 standard error of the value - 17.54153
+
+</li>
+
+</ul>
+
+</p>
+
+<br />
+
+```{r}
+lambdas <- model_ridge$lambda.min
+
+lambdas
+```
+
+<p>
+
+The lambda value that minimizes the test MSE turns out to be <b>2.265576</b>
+
+</p>
+
+</p>
+
+<br />
+
+<p>
+
+Final Model produced by optimal lambda value - <b>Optimal Lambda value = model_ridge\$lambda.min = 1.503868</b>.
+
+</p>
+
+```{r}
+final_model <- glmnet(x_feat, y_feat, alpha = 0, lambda = lambdas)
+#Obtaining Coefficients for the model
+final_model
+```
+
+<p>
+
+<b>Fitting the Ridge regression model against the training set.</b>
+
+</p>
+
+<br />
+
+```{r}
+# Selecting the features for regression from train data
+
+list_names <- colnames(train_data)[colnames(College) != "Grad.Rate"]  # Get names
+x_train <- data.matrix(train_data[, list_names]) #Predictors
+y_train <- train_data[, "Grad.Rate"] # Target 
+
+ridge_mod_train = glmnet(x_train, y_train, alpha = 0, lambda = lambdas)
+
+
+coef(ridge_mod_train)
+```
+
+<p>
+
+Coefficients for ridge regression are set close to zero. All variables are taken into account i.e., no variable has a coefficient of zero. This is as expected of ridge regression model which takes into account coefficients for all the variables in the model thus no feature selection for the model.
+
+</p>
+
+<p>
+
+<b>Fit Train model to train Data and determine Performance</b>
+
+</p>
+
+<br />
+
+```{r}
+#use fitted best model to make predictions
+train_predict <- predict(ridge_mod_train, s = lambdas, newx = x_train)
+
+#calculate RMSE
+RMSE <- sqrt(mean((y_train - train_predict)^2))
+RMSE
+
+```
+
+<p>
+
+The root mean square error (RMSE) is a metric that tells us how far apart our predicted values are from our observed values in a regression analysis. Higher value of RMSE is indicative of a poor model. In this case our value is 12.6931, which is in our case ideal.
+
+</p>
+
+<br />
+
+<p>
+
+<b>Performance of the fit model against test</b>
+
+</p>
+
+```{r}
+list_names <- colnames(test_data)[colnames(test_data) != "Grad.Rate"]  # Get names
+x_test<- data.matrix(test_data[, list_names]) #Predictors
+y_test <- test_data[, "Grad.Rate"] # Target 
+
+
+test_predict <- predict(ridge_mod_train, s=lambdas, newx = x_test)
+
+#calculate RMSE
+RMSE_ridge <- sqrt(mean((y_test - test_predict)^2))
+RMSE_ridge
+
+```
+
+<p>
+
+RMSE value for test is 12.7524 for ridge regression. It is not much different with RMSE for train data which is indicating the model is 12.6931 a good fit for both train and test data.
+
+</p>
+
+<br />
+
+<h1>
+
+LASSO Regression
+
+</h1>
+
+<br />
+
+<p>
+
+<b> cv.glmnet function to estimate the lamda.min and lambda.1se</b>
+
+</p>
+
+<br />
+
+```{r}
+set.seed(123)
+
+model_lasso <- cv.glmnet(x_feat, y_feat, alpha = 1)
+
+#Obtaining Lambda Min and 1se
+data.frame(
+  Lamda_min = model_lasso$lambda.min,
+  Lambda_1se = model_lasso$lambda.1se
+)
+
+```
+
+<p>
+
+<ul>
+
+<li>
+
+The minimum value of lambda (lambda.min) that results in the smallest cross-validation error - value in this case 0.2604861
+
+</li>
+
+<li>
+
+The largest value of lambda (ie. more regularized) within the 1 standard error of the value - 1.26664
+
+</li>
+
+</ul>
+
+</p>
+
+<br />
+
+<p>
+
+<b>Plot for LASSO model</b>
+
+</p>
+
+<br />
+
+```{r}
+plot(model_lasso)
+abline(v=model_lasso$lambda.min, col = "red", lty=2)
+abline(v=model_lasso$lambda.1se, col="green", lty=2)
+```
+
+<p>
+
+The lowest point in the curve indicates the optimal lambda: the log value of lambda that best minimised the error in cross-validation.
+
+<ul>
+
+<li>
+
+The minimum value of lambda - red dotted line in the plot - (lambda.min) that results in the smallest cross-validation error - value in this case 0.2604861
+
+</li>
+
+<li>
+
+The largest value of lambda -green dotted line in the plot - (ie. more regularized) within the 1 standard error of the value - 1.26664
+
+</li>
+
+</ul>
+
+</p>
+
+<br />
+
+<p>
+
+To obtain Optimal lamda value
+
+</p>
+
+```{r}
+optimal <- model_lasso$lambda.min
+optimal
+```
+
+<p>
+
+<b>Fitting Lasso Model against the training set</b>
+
+</p>
+
+```{r}
+lasso_mod_train = glmnet(x_train, y_train, alpha = 1, lambda = optimal)
+
+
+coef(lasso_mod_train)
+```
+
+<p>
+
+Co-efficients for F.Undergrad, Terminal, Accept & Enroll have reduced to zero. This variables whose coefficients has been shrunk to zero wont be used by the model.
+
+</p>
+
+<br />
+
+<p>
+
+<b>Perfomance of LASSO against Train Data</b>
+
+</p>
+
+<br />
+
+```{r}
+#use fitted best model to make predictions
+train_predict <- predict(lasso_mod_train, s = optimal, newx = x_train)
+
+#calculate RMSE
+RMSE <- sqrt(mean((y_train - train_predict)^2))
+RMSE
+```
+
+<p>
+
+Higher value of RMSE is indicative of a poor model. In this case our value is 12.69293, which is in our case ideal.
+
+</p>
+
+<br />
+
+<p>
+
+<b>Performance of the fit model against test</b>
+
+</p>
+
+```{r}
+test_predict <- predict(lasso_mod_train, s= optimal, newx = x_test)
+
+#calculate RMSE
+RMSE_lasso <- sqrt(mean((y_test - test_predict)^2))
+RMSE_lasso
+```
+
+<p>
+
+RMSE value for test is 12.76637 for ridge regression. It is not much different with RMSE for train data which is indicating the model is 12.69293 a good fit for both train and test data.
+
+</p>
+
+<br />
+
+<h1>
+
+Comparison of the models
+
+</h1>
+
+```{r}
+#Compare RMSE of the two Models
+data.frame(
+  RMSE.Ridge = RMSE_ridge,
+  RMSE.Lasso = RMSE_lasso
+)
+```
+
+<p>
+
+From the above we can conclude that Ridge Model performs slightly better than LASSO model for the College data
+
+</p>
+
+<br />
+
+<h1>
+
+Feature Selection
+
+</h1>
+
+<p>
+
+The data set has 18 columns. Using Grad.Rate as the outcome variable we are left with 17 predictor variables hence the need to select which variables will be of important to making predictions in the model.
+
+</p>
+
+<p>
+
+We are going to combine both forward and backward selection in selectiong the predictor variables to use.
+
+</p>
+
+<br /> <b>Linear Model With all variables</b>
+
+```{r}
+model.all <- lm(Grad.Rate ~ ., data = College)
+summary(model.all)
+```
+
+<p>
+
+From above We can see that predictor variables that can see that Private, Apps, Top25perc,F.Undergrad, P.undergrad, Outstate, Room.Board, Personal, perc.alumni & Expend have a p-value of less than 0.05 thus are significant in this model. To model anew we need to eliminate features that are not of important to the model. We can select features for the model using:
+
+<ul>
+
+<li>
+
+Forward Selection,
+
+</li>
+
+<li>
+
+Backward Selection or
+
+</li>
+
+<li>
+
+Both-Direction Stepwise Selection
+
+</li>
+
+</ul>
+
+</p>
+
+In this case we will use Both-Direction Stepwise Selection <br /> <b>Feature Selection</b>
+
+```{r}
+#define intercept-only model
+intercept_only <- lm(Grad.Rate ~ 1, data = College)
+#define model with all predictors
+all <- lm(Grad.Rate ~ ., data = College)
+#perform Both-Direction Stepwise  regression
+both <- step(intercept_only, direction='both', scope=formula(all), trace=0)
+#view results Both-Direction Stepwise  regression
+both$anova
+```
+
+<p>
+
+Final Model
+
+</p>
+
+<br />
+
+```{r}
+#view final model
+both$coefficients
+```
+
+<p>
+
+Final Model can be modelled as:
+
+</p>
+
+<b><i> Grad.Rate \~ 32.917 + 0.001*outstate + 0.176*Top25perc + 0.288*perc.alumni-0.002*P.Undergrad+0.001*Apps+0.002*Room.Board-0.0004*Expend - 0.002*Personal + 3.394\*Private(Yes)</i></b>
+
+<h1>
+
+Comparison of the Models
+
+</h1>
+
+<p>
+
+We will compare Linear Model with Ridge and Lasso Models using Anova
+
+</p>
+
+```{r}
+#All Features
+all_linear_model <- lm(Grad.Rate ~ ., data = College)
+
+#Linear Model with selected features
+linear_model <- lm(Grad.Rate ~ Outstate+Top25perc+perc.alumni+P.Undergrad+Apps+Room.Board+Expend+Personal+Private, data = College)
+
+```
+
+<p>
+
+Comparing the Models
+
+</p>
+
+```{r}
+#Linear Vs Ridge
+anova( all_linear_model, linear_model)
+```
+
+<h1>
+
+conclusion
+
+</h1>
+
+<br />
+
+<p>
+
+From the above models Ridge model performed better than Lasso model. Linear modeling, lasso, and ridge try to explain the relationship between response and predictor variables. Lasso model shrinks predictor variables all the way to zero leading to feature selection. Ridge shrinks coefficients but does not set any of them to zero - no feature selection.
+
+</p>
+
+<h1>
+
+References
+
+</h1>
+
+<ul>
+
+<li>
+
+<a href="https://zawar-ahmed.medium.com/comparing-linear-regression-models-lasso-vs-ridge-60587ff5a5aa.">Ahmed, Z. (2020, May 6). Comparing Linear Regression Models: Lasso vs Ridge. Medium.</a>
+
+</li>
+
+<li>
+
+<a href=" https://www.datascievo.com/lasso-regression-in-r/.">Datascievo. (2021, March 3). LASSO Regression in R: An Efficient Way of Learning Regression. Data Science Evolution.</a>
+
+</li>
+
+<li>
+
+<a href="https://www.r-bloggers.com/2020/06/understanding-lasso-and-ridge-regression/.">Loft, R. \| S. (2020, June 16). Understanding Lasso and Ridge Regression: R-bloggers. R. </a>
+
+</li>
+
+<li>
+
+<a href="https://www.pluralsight.com/guides/linear-lasso-and-ridge-regression-with-r.">Singh, D. (2019, November 12). Deepika Singh. Pluralsight.</a>
+
+</li>
+
+<li>
+
+<a href="https://www.statology.org/stepwise-regression-r/.">Zach. (2020, November 6). A Complete Guide to Stepwise Regression in R. Statology.</a>
+
+</li>
+
+</ul>
